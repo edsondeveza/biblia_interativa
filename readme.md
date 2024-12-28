@@ -11,6 +11,12 @@
 5. [Tecnologias Utilizadas](#tecnologias-utilizadas)
 6. [Diferenciais do Projeto](#diferenciais-do-projeto)
 7. [Estrutura Final do Projeto](#estrutura-final-do-projeto)
+8. [Como Executar](#como-executar)
+9. [Requisitos do Sistema](#requisitos-do-sistema)
+10. [Agradecimentos](#agradecimentos)
+11. [Contribuindo](#contribuindo)
+12. [Licença](#licença)
+13. [Mensagem Final](#mensagem-final)
 
 ---
 
@@ -95,9 +101,93 @@ bible_project/
 ├── README.md               # Documentação do projeto
 ├── requirements.txt        # Dependências do projeto
 └── .gitignore              # Arquivos ignorados pelo Git
+```
 
 ---
 
+## **Como Executar**
 
+1. *Clone o repositório:*
 
+   ```bash
+   git clone https://github.com/edsondeveza/biblia_interativa.git
+   cd biblia_interativa
 
+2. *Crie um ambiente virtual (opcional, mas recomendado):*
+
+   ```bash
+   python -m venv venv
+   source venv/bin/activate       # Linux/Mac
+   venv\Scripts\activate          # Windows
+
+3. *Instale as dependências:*
+
+   ```bash
+
+   pip install -r requirements.txt
+4. *Execute o aplicativo:*
+
+   ```bash
+   streamlit run app.py 
+
+5. *Acesse no navegador:*
+
+- O Streamlit abrirá automaticamente uma janela no navegador. Caso isso não ocorra, acesse <http://localhost:8501>.
+
+---
+
+## **Requisitos do Sistema**
+
+- **Python**: Versão 3.13 ou superior.
+- **Streamlit**: Versão 1.41.1 ou superior.
+- **Bibliotecas Necessárias**: Listadas em requirements.txt.
+- **Sistema Operacional**: Compatível com Windows, macOS e Linux.
+
+---
+
+## **Agradecimentos**
+
+Gostaria de expressar minha mais sincera gratidão:
+
+- **A Deus**, por me capacitar e guiar na realização deste projeto, que tem como propósito levar Sua Palavra a mais pessoas.
+- **Aos meus amigos e familiares**, pelo apoio incondicional e incentivo constante.
+- **À comunidade de desenvolvedores**, que compartilha conhecimento e inspira a criação de soluções inovadoras.
+- **Aos usuários desta ferramenta**, que dão vida e significado a este projeto.
+- **Ao meu professor Vinícius Rocha Lima e à Empowerdata**, por serem fundamentais na minha capacitação e no desenvolvimento da minha trajetória com Python.
+
+**Juntos, continuamos espalhando fé, conhecimento e esperança!**
+
+---
+
+## **Contribuindo**
+
+Contribuições são muito bem-vindas!  
+
+Se você deseja ajudar a melhorar este projeto, siga os passos abaixo:
+
+1. Faça um fork deste repositório.
+2. Crie uma branch para suas alterações:
+
+   ```bash
+   git checkout -b minha-nova-feature
+3. Commit suas alterações:
+
+   ```bash
+   git commit -m 'Adiciona nova funcionalidade'
+4. Envie para sua branch:
+
+   ```bash
+   git push origin minha-nova-feature
+5. Abra um Pull Request
+
+Vamos construir juntos uma plataforma ainda mais impactante!
+
+---
+
+## **Licença**
+
+Este projeto está licenciado sob a Licença MIT. Sinta-se à vontade para usá-lo, modificá-lo e distribuí-lo, desde que os devidos créditos sejam mantidos.
+
+## **Mensagem Final**
+
+A Bíblia Interativa não é apenas uma ferramenta digital, mas um verdadeiro companheiro na jornada espiritual de cada usuário. Unindo tecnologia e fé, nossa missão é facilitar o acesso à Palavra de Deus, inspirar vidas e fortalecer a fé de milhares de pessoas, oferecendo uma experiência única e enriquecedora.
