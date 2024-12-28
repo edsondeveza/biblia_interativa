@@ -12,8 +12,10 @@ colorama==0.4.6
 crashtest==0.4.1
 distlib==0.3.9
 dulwich==0.21.7
+et_xmlfile==2.0.0
 fastjsonschema==2.21.1
 filelock==3.16.1
+fpdf==1.7.2
 gitdb==4.0.11
 GitPython==3.1.43
 idna==3.10
@@ -30,6 +32,7 @@ more-itertools==10.5.0
 msgpack==1.1.0
 narwhals==1.19.1
 numpy==2.2.1
+openpyxl==3.1.5
 packaging==24.2
 pandas==2.2.3
 pexpect==4.9.0
@@ -68,3 +71,4 @@ tzdata==2024.2
 urllib3==2.3.0
 virtualenv==20.28.0
 watchdog==6.0.0
+XlsxWriter==3.2.0
