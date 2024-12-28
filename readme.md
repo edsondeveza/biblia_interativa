@@ -1,6 +1,6 @@
 # **Bíblia Interativa**
 
-*Uma plataforma moderna para leitura, estudo e busca na Palavra de Deus.*
+*Uma ferramenta moderna para leitura, estudo e busca na Palavra de Deus.*
 
 ## **Índice**
 
