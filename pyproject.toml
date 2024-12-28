@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "biblia"
+version = "0.1.0"
+description = ""
+authors = ["Edson Deveza <edsondeveza@hotmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.13"
+streamlit = "^1.41.1"
+pandas = "^2.2.3"
+numpy = "^2.2.1"
+fpdf = "^1.7.2"
+openpyxl = "^3.1.5"
+xlsxwriter = "^3.2.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,7 @@
+[theme]
+primaryColor = "#8B0000"         # Vermelho escuro, remetendo à tradição e seriedade
+backgroundColor = "#FFF8E7"      # Tom de papel envelhecido para conforto visual
+secondaryBackgroundColor = "#F4EBD0" # Tom complementar para áreas secundárias
+textColor = "#4B2E83"            # Roxo escuro, associado à espiritualidade e harmonia
+font = "serif"                   # Fonte clássica e agradável para textos longos
+

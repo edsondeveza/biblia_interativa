@@ -1,0 +1,8 @@
+# Ignorar arquivos temporários
+*.log
+*.env
+node_modules/
+__pycache__/
+
+# Não ignorar a pasta .streamlit
+!.streamlit/
