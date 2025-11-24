@@ -1,6 +1,6 @@
 # **Bíblia Interativa**
 
-*Uma plataforma moderna para leitura, estudo e busca na Palavra de Deus.*
+*Uma ferramenta moderna para leitura, estudo e busca na Palavra de Deus.*
 
 ## **Índice**
 
@@ -161,7 +161,7 @@ Gostaria de expressar minha mais sincera gratidão:
 
 ## **Contribuindo**
 
-Contribuições são muito bem-vindas!  
+Contribuições são mais do que bem-vindas! Este projeto é parte da minha jornada de aprendizado, onde aplico na prática os conhecimentos adquiridos em aulas. Por isso, há sempre espaço para melhorias, e sua ajuda será de grande valor 
 
 Se você deseja ajudar a melhorar este projeto, siga os passos abaixo:
 
