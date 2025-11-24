@@ -5,6 +5,8 @@ from fpdf import FPDF
 import streamlit as st
 import io
 
+
+
 # Função para conexão com o banco de dados
 def conectar_banco(caminho):
     return sqlite3.connect(caminho)
@@ -90,7 +92,7 @@ def exportar_pdf(df):
     pdf.set_font("Arial", size=12)
 
     # Adicionar título
-    pdf.cell(200, 10, txt="Resultados da Busca na Bíblia", ln=True, align='C')
+    pdf.cell(200, 10, txt="Resultados da Busca na Bíblia", ln=True, align='C') # pyright: ignore[reportCallIssue]
     pdf.ln(10)
 
     # Adicionar dados
@@ -103,7 +105,7 @@ def exportar_pdf(df):
             st.error("Erro ao codificar caracteres Unicode no PDF.")
 
     # Salva o PDF em memória e disponibiliza para download
-    pdf_output = pdf.output(dest='S').encode('latin-1', 'replace')
+    pdf_output = pdf.output(dest='S').encode('latin-1', 'replace') # pyright: ignore[reportAttributeAccessIssue]
     st.download_button(
         label="Exportar como PDF",
         data=pdf_output,
