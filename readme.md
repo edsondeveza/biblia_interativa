@@ -161,7 +161,7 @@ Gostaria de expressar minha mais sincera gratidão:
 
 ## **Contribuindo**
 
-Contribuições são mais do que bem-vindas! Este projeto é parte da minha jornada de aprendizado, onde aplico na prática os conhecimentos adquiridos em aulas. Por isso, há sempre espaço para melhorias, e sua ajuda será de grande valor 
+Contribuições são mais do que bem-vindas! Este projeto é parte da minha jornada de aprendizado, onde aplico na prática os conhecimentos adquiridos em aulas. Por isso, há sempre espaço para melhorias, e sua ajuda será de grande valor
 
 Se você deseja ajudar a melhorar este projeto, siga os passos abaixo:
 
