@@ -136,6 +136,7 @@ def mostrar_header() -> None:
 
     st.title("📖 Bíblia Interativa")
     st.caption("Estudo bíblico com múltiplas versões, buscas avançadas e anotações.")
+    st.caption("**Este projeto é fornecido apenas para fins educacionais e de estudo.**")
 
 
 def selecionar_versao(bancos: List[Path]) -> Path | None:
