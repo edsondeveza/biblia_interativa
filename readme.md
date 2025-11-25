@@ -2,6 +2,8 @@
 
 _Uma ferramenta moderna para leitura, estudo e busca na Palavra de Deus._  
 
+**Este projeto é fornecido apenas para fins educacionais e de estudo. Não possui finalidade comercial e não se destina, sob qualquer forma, à venda, monetização ou exploração comercial.**
+
 ---
 
 ## 📚 Índice
@@ -28,8 +30,6 @@ A **Bíblia Interativa** é uma aplicação web construída com **Python 3.12** 
 - Visualizar **estatísticas de leitura, anotações e buscas**  
 
 O foco é ser uma ferramenta de estudo **leve, simples de usar** e com base em **arquivos SQLite** contendo diferentes traduções bíblicas.
-
-**Este projeto é fornecido apenas para fins educacionais e de estudo. Não possui finalidade comercial e não se destina, sob qualquer forma, à venda, monetização ou exploração comercial.**
 
 ---
 
