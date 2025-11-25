@@ -85,7 +85,7 @@ Abaixo um passo a passo padrão para Windows; as variações para Linux/macOS es
 ### 1. Clonar o repositório (ou copiar os arquivos)
 
 ```bash
-git clone https://github.com/seu-usuario/biblia_interativa.git
+git https://github.com/edsondeveza/biblia_interativa
 cd biblia_interativa
 ```
 
@@ -162,34 +162,6 @@ http://localhost:8501
 ```
 
 A partir daí, você navega pelas páginas usando a barra lateral do Streamlit.
-
----
-
-## 🖼️ Capturas de Tela
-
-> _Seção reservada para futuras capturas de tela da aplicação._
-
-Sugestões de imagens para incluir futuramente:
-
-- Página **Home** com o seletor de versão da Bíblia  
-- Página **Leitura** mostrando um capítulo completo  
-- Página **Busca Simples** com resultados e métricas  
-- Página **Busca Avançada** com filtros aplicados  
-- Página **Comparação** com duas ou três versões lado a lado  
-- Página **Anotações** com anotações abertas em expanders  
-- Página **Estatísticas** com gráficos e contadores
-
-Quando as imagens estiverem prontas, crie uma pasta, por exemplo:
-
-```bash
-docs/img/
-```
-
-E referencie no README assim:
-
-```markdown
-![Leitura da Bíblia](docs/img/leitura.png)
-```
 
 ---
 
