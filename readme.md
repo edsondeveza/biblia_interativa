@@ -1,193 +1,389 @@
-# **Bíblia Interativa**
+# 📖 Bíblia Interativa
 
-*Uma ferramenta moderna para leitura, estudo e busca na Palavra de Deus.*
-
-## **Índice**
-
-1. [Descrição do Projeto](#descrição-do-projeto)
-2. [Visão Geral do Projeto](#visão-geral-do-projeto)
-3. [Funcionalidades Principais](#funcionalidades-principais)
-4. [Público-Alvo](#público-alvo)
-5. [Tecnologias Utilizadas](#tecnologias-utilizadas)
-6. [Diferenciais do Projeto](#diferenciais-do-projeto)
-7. [Estrutura Final do Projeto](#estrutura-final-do-projeto)
-8. [Como Executar](#como-executar)
-9. [Requisitos do Sistema](#requisitos-do-sistema)
-10. [Agradecimentos](#agradecimentos)
-11. [Contribuindo](#contribuindo)
-12. [Licença](#licença)
-13. [Mensagem Final](#mensagem-final)
+_Uma ferramenta moderna para leitura, estudo e busca na Palavra de Deus._  
 
 ---
 
-## **Descrição do Projeto**
+## 📚 Índice
 
-**Nome do Projeto**: Bíblia Interativa  
-**Objetivo**: Proporcionar aos usuários uma experiência moderna, acessível e personalizada para leitura, estudo e busca na Palavra de Deus, por meio de uma ferramenta interativa e fácil de usar.
-
----
-
-## Visão Geral do Projeto
-
-A Bíblia Interativa é uma ferramenta digital inovadora, projetada para transformar a leitura e o estudo da Palavra de Deus. Com uma interface amigável e ferramentas poderosas, o sistema permite que os usuários naveguem por diferentes versões bíblicas, explorem livros, capítulos e versículos, além de realizar buscas temáticas aprofundadas. Também oferece funcionalidades para exportação de dados e impressão, sendo útil tanto para estudos individuais quanto em grupo.
-
----
-
-## **Funcionalidades Principais**
-
-1. **Leitura da Bíblia**:
-   - Navegação intuitiva por testamento, livro, capítulo e versículo.
-   - Exibição clara e organizada do texto bíblico, sem sobrecarga de índices.
-
-2. **Busca Avançada**:
-   - Pesquisa por palavras-chave com filtros por Velho ou Novo Testamento.
-   - Resultados detalhados com referências específicas de livro, capítulo e versículo.
-
-3. **Exportação de Resultados**:
-   - Exportação dos resultados da busca para formatos CSV, XLSX e PDF.
-   - Impressão direta da tabela de resultados.
-
-4. **Interface Amigável**:
-   - Navegação intuitiva com um menu lateral fácil de usar.
-   - Página inicial com uma mensagem de boas-vindas e imagem inspiradora.
+1. [Descrição do Projeto](#-descrição-do-projeto)
+2. [Estrutura do Projeto](#-estrutura-do-projeto)
+3. [Como Executar (Python 312--venv)](#-como-executar-python-312--venv)
+4. [Capturas de Tela](#-capturas-de-tela)
+5. [Funcionalidades](#-funcionalidades)
+6. [Guia de Contribuição](#-guia-de-contribuição)
+7. [Requisitos do Sistema](#-requisitos-do-sistema)
+8. [Roadmap Futuro](#-roadmap-futuro)
 
 ---
 
-## **Público-Alvo**
+## 📝 Descrição do Projeto
 
-- Cristãos que buscam aprofundar o estudo da Bíblia de maneira prática e moderna.
-- Professores de Escola Dominical e líderes religiosos.
-- Pessoas interessadas em uma experiência dinâmica e interativa de leitura bíblica.
+A **Bíblia Interativa** é uma aplicação web construída com **Python 3.12** e **Streamlit** para:
 
----
+- Ler a Bíblia com navegação por **testamento → livro → capítulo → versículo**  
+- Realizar **buscas simples e avançadas** por palavras, trechos ou temas  
+- Comparar **diferentes versões/traduções** lado a lado  
+- Criar e organizar **anotações pessoais** ligadas a versículos específicos  
+- Visualizar **estatísticas de leitura, anotações e buscas**  
 
-## **Tecnologias Utilizadas**
-
-- **Linguagem de Programação**: Python.
-- **Framework**: Streamlit (para interface de usuário interativa).
-- **Banco de Dados**: SQLite (para armazenamento dos textos bíblicos).
-- **Bibliotecas Complementares**:
-  - **Pandas**: Manipulação de dados e análise.
-  - **FPDF**: Geração de relatórios em formato PDF.
-  - **XlsxWriter**: Criação e exportação de arquivos Excel.
+O foco é ser uma ferramenta de estudo **leve, simples de usar** e com base em **arquivos SQLite** contendo diferentes traduções bíblicas.
 
 ---
 
-## **Diferenciais do Projeto**
+## 🧱 Estrutura do Projeto
 
-- **Suporte a múltiplas versões da Bíblia**: ACF, ARC, NVI e outras.
-- **Exportação personalizável**: Exportação fácil e rápida dos resultados da busca.
-- **Busca rápida e precisa**: Ideal para estudos bíblicos e pesquisas temáticas.
-- **Design responsivo e minimalista**: Foco na leitura bíblica, com um layout simples e intuitivo.
+Estrutura sugerida do repositório (pode haver pequenas variações locais):
+
+```bash
+biblia_interativa/
+├── Home.py                    # Arquivo inicial do Streamlit (menu principal)
+├── pages/                     # Páginas adicionais da aplicação (multipage)
+│   ├── 1_📖_Leitura.py        # Leitura da Bíblia
+│   ├── 2_🔍_Busca_Simples.py  # Busca simples
+│   ├── 3_🔍+_Busca_Avançada.py# Busca avançada
+│   ├── 4_⚖️_Comparação.py     # Comparação de versões
+│   ├── 5_📝_Anotações.py      # Anotações de estudo
+│   └── 6_📊_Estatísticas.py   # Estatísticas de uso e da Bíblia
+│
+├── src/                       # Módulos internos (lógica e serviços)
+│   ├── __init__.py
+│   ├── database.py            # Conexão e consultas ao SQLite
+│   ├── logger.py              # Registro de logs de uso/erros
+│   ├── export.py              # Exportação (CSV, XLSX, PDF, HTML)
+│   ├── error_handler.py       # Tratamento padronizado de erros
+│   ├── annotations.py         # (Opcional) Camada de anotações persistentes
+│   └── ui_utils.py            # Utilidades de UI (ex.: seletor global de versão)
+│
+├── data/                      # Arquivos de banco de dados SQLite (não versionados)
+│   ├── ACF.sqlite             # Almeida Corrigida e Fiel
+│   ├── ARA.sqlite             # Almeida Revista e Atualizada
+│   ├── ARC.sqlite             # Almeida Revista e Corrigida
+│   ├── NAA.sqlite             # Nova Almeida Atualizada
+│   ├── NVI.sqlite             # Nova Versão Internacional
+│   └── ...                    # Demais versões suportadas
+│
+├── tests/                     # Testes automatizados
+│   └── test_database.py       # Testes básicos para o módulo database
+│
+├── .gitignore                 # Arquivos/pastas ignorados pelo Git
+├── README.md                  # Este arquivo
+├── requirements.txt           # Dependências do projeto (pip)
+└── config.toml                # (Opcional) Configurações extras
+```
+
+> 💡 A pasta `data/` normalmente _não_ é versionada no Git (por conter arquivos grandes `.sqlite`).  
+> Utilize amostras pequenas ou scripts de criação/população do banco, se quiser distribuir junto.
 
 ---
 
-## **Estrutura Final do Projeto**
+## ▶️ Como Executar (Python 3.12 + venv)
 
-```plaintext
-bible_project/
-├── .streamlit/             # Configurações do Streamlit
-│   ├── config.toml
-├── data/                   # Bancos de dados SQLite
-│   ├── ACF.sqlite
-│   ├── ARA.sqlite
-│   └── ...
-├── app.py                  # Arquivo principal da aplicação
-├── busca.py                # Lógica da página de busca
-├── leitura.py              # Lógica da página de leitura
-├── utils.py                # Funções auxiliares (manipulação de dados, SQL)
-├── poetry.lock             # Arquivo gerado pelo Poetry
-├── pyproject.toml          # Configuração do Poetry
-├── README.md               # Documentação do projeto
-├── requirements.txt        # Dependências do projeto
-└── .gitignore              # Arquivos ignorados pelo Git
+A aplicação foi pensada para rodar com **Python 3.12** e ambiente virtual local (`venv`).  
+Abaixo um passo a passo padrão para Windows; as variações para Linux/macOS estão indicadas.
+
+### 1. Clonar o repositório (ou copiar os arquivos)
+
+```bash
+git clone https://github.com/seu-usuario/biblia_interativa.git
+cd biblia_interativa
+```
+
+Ou simplesmente copie os arquivos para uma pasta, por exemplo:
+
+```bash
+C:\estudos\biblia_interativa
+```
+
+### 2. Criar o ambiente virtual (`venv`)
+
+```bash
+python -m venv .venv
+```
+
+- Isso criará uma pasta `.venv` dentro do projeto.
+
+### 3. Ativar o ambiente virtual
+
+**No Windows (PowerShell ou CMD):**
+
+```bash
+.\.venv\Scriptsctivate
+```
+
+**No Linux/macOS:**
+
+```bash
+source .venv/bin/activate
+```
+
+Você deve ver algo como `(.venv)` no início da linha do terminal.
+
+### 4. Instalar dependências
+
+Se existir um arquivo `requirements.txt`, use:
+
+```bash
+pip install -r requirements.txt
+```
+
+Caso ainda não exista, o mínimo para rodar é:
+
+```bash
+pip install streamlit pandas
+```
+
+(Dependendo das funcionalidades, podem ser usados também `reportlab` ou outra lib de PDF, etc.)
+
+### 5. Colocar os arquivos da Bíblia na pasta `data/`
+
+Crie a pasta `data/` na raiz do projeto (se ainda não existir) e copie para dentro dela os arquivos `.sqlite` das traduções que você possui, como:
+
+```bash
+data/
+├── ACF.sqlite
+├── ARA.sqlite
+├── ARC.sqlite
+└── ...
+```
+
+### 6. Rodar a aplicação
+
+Com o ambiente virtual **ativo**, execute:
+
+```bash
+streamlit run Home.py
+```
+
+O navegador abrirá (ou você poderá acessar manualmente) em algo como:
+
+```text
+http://localhost:8501
+```
+
+A partir daí, você navega pelas páginas usando a barra lateral do Streamlit.
+
+---
+
+## 🖼️ Capturas de Tela
+
+> _Seção reservada para futuras capturas de tela da aplicação._
+
+Sugestões de imagens para incluir futuramente:
+
+- Página **Home** com o seletor de versão da Bíblia  
+- Página **Leitura** mostrando um capítulo completo  
+- Página **Busca Simples** com resultados e métricas  
+- Página **Busca Avançada** com filtros aplicados  
+- Página **Comparação** com duas ou três versões lado a lado  
+- Página **Anotações** com anotações abertas em expanders  
+- Página **Estatísticas** com gráficos e contadores
+
+Quando as imagens estiverem prontas, crie uma pasta, por exemplo:
+
+```bash
+docs/img/
+```
+
+E referencie no README assim:
+
+```markdown
+![Leitura da Bíblia](docs/img/leitura.png)
 ```
 
 ---
 
-## **Como Executar**
+## ⚙️ Funcionalidades
 
-1. *Clone o repositório:*
+### 🔹 Seletor Global de Versão da Bíblia
 
-   ```bash
-   git clone https://github.com/edsondeveza/biblia_interativa.git
-   cd biblia_interativa
+- Disponível em todas as páginas (graças ao utilitário `src/ui_utils.py`)  
+- Permite escolher rapidamente entre as versões disponíveis em `data/`  
+- Atualiza a aplicação inteira para usar o `.sqlite` correspondente
 
-2. *Crie um ambiente virtual (opcional, mas recomendado):*
+### 🔹 Home (`Home.py`)
 
-   ```bash
-   python -m venv venv
-   source venv/bin/activate       # Linux/Mac
-   venv\Scripts\activate          # Windows
+- Apresenta a visão geral do projeto
+- Explica as principais funcionalidades
+- Oferece botões de navegação para as demais páginas
 
-3. *Instale as dependências:*
+### 🔹 Leitura da Bíblia (`pages/1_📖_Leitura.py`)
 
-   ```bash
+- Navegação por: **Testamento → Livro → Capítulo**
+- Exibição dos versículos com:
+  - Opção de mostrar/ocultar números de versículos
+  - Ajuste de tamanho de fonte
+  - Ajuste de espaçamento entre linhas
+- Botão em cada versículo para criar anotações ligadas àquele texto
 
-   pip install -r requirements.txt
-4. *Execute o aplicativo:*
+### 🔹 Busca Simples (`pages/2_🔍_Busca_Simples.py`)
 
-   ```bash
-   streamlit run app.py 
+- Campo de busca por **palavra ou trecho**
+- Filtro por **testamento (VT / NT / Todos)**
+- Exibe:
+  - Total de versículos encontrados
+  - Quantidade por testamento
+  - Lista em tabela (`Livro`, `Capítulo`, `Versículo`, `Texto`)
+- Exportação de resultados em:
+  - CSV
+  - XLSX
+  - PDF
+  - HTML
+- Histórico de buscas recentes (com tempo de execução)
 
-5. *Acesse no navegador:*
+### 🔹 Busca Avançada (`pages/3_🔍+_Busca_Avançada.py`)
 
-- O Streamlit abrirá automaticamente uma janela no navegador. Caso isso não ocorra, acesse <http://localhost:8501>.
+- Permite combinar **múltiplas palavras** com operador lógico:
+  - `E` (todas as palavras)
+  - `OU` (qualquer palavra)
+- Opção de **“frase exata”**
+- Filtros por:
+  - Testamento
+  - Livro específico
+- Exibe métricas avançadas:
+  - Quantidade de livros encontrados
+  - Quantidade de capítulos distintos
+  - Total de versículos
+- Exportação de resultados (CSV, XLSX, PDF, HTML)
+- Histórico compartilhado com a busca simples
+
+### 🔹 Comparação de Versões (`pages/4_⚖️_Comparação.py`)
+
+- Seleção de **um texto base** (Testamento → Livro → Capítulo → Versículo opcional)
+- Escolha de até **3 versões** diferentes (arquivos `.sqlite`)
+- Exibe os versículos lado a lado em uma tabela, cada coluna sendo uma versão
+- Ideal para estudo comparativo de traduções
+
+### 🔹 Anotações (`pages/5_📝_Anotações.py`)
+
+- Criação de anotações ligadas a:
+  - Livro
+  - Capítulo
+  - Versículo
+- Possibilidade de registrar também:
+  - Trecho do versículo
+  - Texto livre de reflexão/estudo
+  - Tags (fé, graça, promessa, oração, etc.)
+- Listagem de anotações com filtros por livro e por tag
+- Botões para:
+  - Editar anotação existente
+  - Excluir anotação
+- Integração com a página de Leitura (botão 📝 em cada versículo)
+
+> Atualmente as anotações são mantidas em `st.session_state`.  
+> Futuramente, podem ser persistidas em SQLite ou outro armazenamento.
+
+### 🔹 Estatísticas (`pages/6_📊_Estatísticas.py`)
+
+Dividida em três abas:
+
+1. **Bíblia**
+   - Número total de livros, capítulos e versículos
+   - Distribuição de versículos entre Antigo e Novo Testamento
+   - Top 10 livros com mais versículos (tabela e gráfico)
+2. **Anotações**
+   - Quantidade de anotações
+   - Quantidade de livros anotados
+   - Distribuição de anotações por livro
+   - Tags mais usadas
+3. **Buscas**
+   - Total de buscas realizadas na sessão
+   - Tipos de busca (simples x avançada)
+   - Média de resultados por busca
+   - Termos mais buscados
 
 ---
 
-## **Requisitos do Sistema**
+## 🤝 Guia de Contribuição
 
-- **Python**: Versão 3.13 ou superior.
-- **Streamlit**: Versão 1.41.1 ou superior.
-- **Bibliotecas Necessárias**: Listadas em requirements.txt.
-- **Sistema Operacional**: Compatível com Windows, macOS e Linux.
+Se você quiser contribuir com o projeto (ou apenas manter padrão na sua própria cópia), seguem algumas sugestões:
+
+### 1. Organização de Branches (opcional, se usar Git)
+
+- `main` ou `master`: versão estável
+- `develop`: desenvolvimento contínuo
+- `feature/<nome>`: novas funcionalidades
+- `fix/<nome>`: correções pontuais
+
+### 2. Estilo de Código
+
+- Utilize **Python 3.12**
+- Siga o máximo possível o padrão **PEP8**
+- Use **type hints** quando possível:
+  - `def funcao(x: int) -> str:`
+- Funções e módulos com **docstrings** claras:
+  - O que fazem
+  - Principais parâmetros
+  - Valor de retorno
+
+### 3. Dependências
+
+- Sempre que adicionar uma nova biblioteca, inclua no `requirements.txt`
+- Evite dependências desnecessárias (principalmente pesadas)
+
+### 4. Testes
+
+- Centralizar testes em `tests/`
+- Exemplo de execução (com venv ativo):
+
+```bash
+pytest -v
+```
+
+- O arquivo `tests/test_database.py` já serve como base para novos testes
+
+### 5. Padrão de Commits (sugestão)
+
+- `feat: descrição da nova funcionalidade`
+- `fix: correção de algum bug`
+- `refactor: melhoria interna de código`
+- `docs: ajustes em documentação`
+- `test: inclusão/melhoria de testes`
+
+### 6. Sugestões de Melhorias
+
+Antes de implementar algo maior, é interessante registrar (como issue ou TODO) ideias como:
+
+- Persistência das anotações em banco de dados
+- Sistema de usuários/perfis
+- Exportação de planos de leitura
+- Integração com APIs externas (quando houver Bíblias de domínio público)
 
 ---
 
-## **Agradecimentos**
+## 🖥️ Requisitos do Sistema
 
-Gostaria de expressar minha mais sincera gratidão:
+- **Python**: 3.12.x  
+- **Sistema Operacional**:
+  - Windows 10/11
+  - Linux
+  - macOS
+- **Bibliotecas principais**:
+  - `streamlit`
+  - `pandas`
+  - (Opcional) libs de exportação como `openpyxl`, `reportlab`, etc.
 
-- **A Deus**, por me capacitar e guiar na realização deste projeto, que tem como propósito levar Sua Palavra a mais pessoas.
-- **Aos meus amigos e familiares**, pelo apoio incondicional e incentivo constante.
-- **À comunidade de desenvolvedores**, que compartilha conhecimento e inspira a criação de soluções inovadoras.
-- **Aos usuários desta ferramenta**, que dão vida e significado a este projeto.
-- **Ao meu professor Vinícius Rocha Lima e à Empowerdata**, por serem fundamentais na minha capacitação e no desenvolvimento da minha trajetória com Python.
+Hardware mínimo:
 
-**Juntos, continuamos espalhando fé, conhecimento e esperança!**
-
----
-
-## **Contribuindo**
-
-Contribuições são mais do que bem-vindas! Este projeto é parte da minha jornada de aprendizado, onde aplico na prática os conhecimentos adquiridos em aulas. Por isso, há sempre espaço para melhorias, e sua ajuda será de grande valor
-
-Se você deseja ajudar a melhorar este projeto, siga os passos abaixo:
-
-1. Faça um fork deste repositório.
-2. Crie uma branch para suas alterações:
-
-   ```bash
-   git checkout -b minha-nova-feature
-3. Commit suas alterações:
-
-   ```bash
-   git commit -m 'Adiciona nova funcionalidade'
-4. Envie para sua branch:
-
-   ```bash
-   git push origin minha-nova-feature
-5. Abra um Pull Request
-
-Vamos construir juntos uma plataforma ainda mais impactante!
+- CPU dual-core
+- 4 GB de RAM
+- Navegador moderno (Chrome, Edge, Firefox, etc.)
 
 ---
 
-## **Licença**
+## 🚀 Roadmap Futuro
 
-Este projeto está licenciado sob a Licença MIT. Sinta-se à vontade para usá-lo, modificá-lo e distribuí-lo, desde que os devidos créditos sejam mantidos.
+Algumas ideias de evolução para próximas versões:
 
-## **Mensagem Final**
+- 🔍 **Highlight** das palavras buscadas nos resultados
+- 🎨 **Tema claro/escuro** com seletor global
+- 🧾 **Exportação temática de PDF** (layout mais elegante para impressão)
+- 📊 **Gráficos adicionais** em Estatísticas (radar, séries temporais, etc.)
+- 📚 **Buscas por tema** (no estilo de concordância bíblica)
+- ⭐ **Favoritos** (livros, capítulos, versículos ou buscas favoritas)
+- 🔐 Persistência de anotações e favoritos em banco de dados
 
-A Bíblia Interativa não é apenas uma ferramenta digital, mas um verdadeiro companheiro na jornada espiritual de cada usuário. Unindo tecnologia e fé, nossa missão é facilitar o acesso à Palavra de Deus, inspirar vidas e fortalecer a fé de milhares de pessoas, oferecendo uma experiência única e enriquecedora.
+---
+
+> Se você estiver lendo este README dentro do próprio projeto local, parabéns:  
+> a maior parte da fundamentação já está pronta. Agora é aprofundar o código, as funcionalidades e, claro, o estudo da Palavra. 🙏

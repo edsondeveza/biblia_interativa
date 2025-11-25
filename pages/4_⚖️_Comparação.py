@@ -1,389 +1,293 @@
 """
-Página de Comparação de Versões
-Compare até 3 traduções bíblicas lado a lado
+Página de Comparação de Versões.
+
+Permite comparar até 3 traduções bíblicas lado a lado
+para o mesmo capítulo ou versículo.
+
+Autor: Edson Deveza
+Versão: 2.0
+Compatível: Python 3.12
 """
 
-from src.export import exportar_csv, exportar_xlsx
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+from typing import Dict, List
+
+import pandas as pd
+import streamlit as st
+
+# Ajuste de path para permitir imports "src.*"
+RAIZ_PROJETO = Path(__file__).parent.parent.absolute()
+if str(RAIZ_PROJETO) not in sys.path:
+    sys.path.insert(0, str(RAIZ_PROJETO))
+
 from src.database import (
     conectar_banco,
     carregar_testamentos,
     carregar_livros_testamento,
     carregar_capitulos,
-    comparar_versoes
+    carregar_versiculos,
 )
-import streamlit as st
-import sys
-import os
-
-# Adicionar diretório raiz ao path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from src.error_handler import handle_database_error, show_connection_error
+from src.logger import log_erro
 
 
-st.set_page_config(page_title="Comparação de Versões",
-                   page_icon="⚖️", layout="wide")
+# ============================================================
+# Configuração da página
+# ============================================================
+st.set_page_config(
+    page_title="Comparação de Versões",
+    page_icon="⚖️",
+    layout="wide",
+)
+
+st.title("⚖️ Comparação de Versões")
 
 
-st.title("⚖️ Comparação Entre Versões da Bíblia")
-
-# Informação
-st.info("📖 Compare o mesmo capítulo ou versículo em diferentes traduções da Bíblia lado a lado. Perfeito para estudos aprofundados!")
-
-# Diretórios
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR = os.path.join(BASE_DIR, "data")
-
-# Versões disponíveis
-versoes_disponiveis = ["ACF", "ARA", "ARC", "AS21", "JFAA",
-                       "KJA", "KJF", "NAA", "NBV", "NTLH", "NVI", "NVT", "TB"]
-versoes_existentes = []
-
-# Verificar quais versões existem
-for versao in versoes_disponiveis:
-    caminho = os.path.join(DATA_DIR, f"{versao}.sqlite")
-    if os.path.exists(caminho):
-        versoes_existentes.append(versao)
-
-if len(versoes_existentes) < 2:
-    st.error(
-        "❌ É necessário ter pelo menos 2 versões da Bíblia para fazer comparações.")
-    st.info("💡 Certifique-se de que os arquivos .sqlite estão na pasta 'data'")
-
-    with st.expander("📋 Versões Disponíveis"):
-        if versoes_existentes:
-            for v in versoes_existentes:
-                st.write(f"✅ {v}")
-        else:
-            st.write("❌ Nenhuma versão encontrada")
-
+# ============================================================
+# Verificações iniciais
+# ============================================================
+if not st.session_state.get("caminho_banco"):
+    st.warning("⚠️ Por favor, selecione uma versão da Bíblia na página inicial.")
     if st.button("← Voltar para Home"):
         st.switch_page("Home.py")
     st.stop()
 
-# Seleção de versões
-st.markdown("### 📚 Selecione as Versões para Comparar")
+versao_atual = st.session_state.get("versao_biblia") or st.session_state.get(
+    "versao_selecionada", "N/D"
+)
+st.markdown(f"**Versão base:** {versao_atual}")
 
-col1, col2, col3 = st.columns(3)
+# Pasta data com as outras versões
+DATA_DIR = RAIZ_PROJETO / "data"
 
-with col1:
-    versao1 = st.selectbox(
-        "Primeira versão:",
-        versoes_existentes,
-        key="versao1_comp",
-        help="Versão principal para comparação"
-    )
 
-with col2:
-    versoes_disponiveis_v2 = [v for v in versoes_existentes if v != versao1]
-    versao2 = st.selectbox(
-        "Segunda versão:",
-        versoes_disponiveis_v2,
-        key="versao2_comp",
-        help="Segunda versão para comparar"
-    )
+def listar_bancos_disponiveis() -> Dict[str, Path]:
+    """Retorna um dict {stem_upper: caminho} com arquivos .sqlite em ./data."""
+    if not DATA_DIR.exists():
+        return {}
+    arquivos = sorted(DATA_DIR.glob("*.sqlite"))
+    return {a.stem.upper(): a for a in arquivos}
 
-with col3:
-    # Opção de terceira versão
-    adicionar_terceira = st.checkbox(
-        "Adicionar terceira versão", help="Compare até 3 versões simultaneamente")
 
-    versao3 = None
-    if adicionar_terceira:
-        versoes_disponiveis_v3 = [
-            v for v in versoes_existentes if v not in [versao1, versao2]]
-        if versoes_disponiveis_v3:
-            versao3 = st.selectbox(
-                "Terceira versão:",
-                versoes_disponiveis_v3,
-                key="versao3_comp"
-            )
-
-# Conectar aos bancos de dados
-try:
-    conexoes = {
-        versao1: conectar_banco(os.path.join(DATA_DIR, f"{versao1}.sqlite")),
-        versao2: conectar_banco(os.path.join(DATA_DIR, f"{versao2}.sqlite"))
-    }
-
-    if versao3:
-        conexoes[versao3] = conectar_banco(
-            os.path.join(DATA_DIR, f"{versao3}.sqlite"))
-
-    # Usar primeira conexão para navegação
-    conexao_ref = conexoes[versao1]
-
-except Exception as e:
-    st.error(f"❌ Erro ao conectar aos bancos de dados: {e}")
+bancos = listar_bancos_disponiveis()
+if not bancos:
+    st.error("❌ Nenhuma versão `.sqlite` encontrada na pasta `data/`.")
     st.stop()
 
-# Seleção de passagem bíblica
+# Garante que a versão atual esteja no dicionário (caso path seja diferente)
+stem_atual = Path(st.session_state.caminho_banco).stem.upper()
+if stem_atual not in bancos:
+    bancos[stem_atual] = Path(st.session_state.caminho_banco)
+
+# ============================================================
+# Conexão com a versão base (para navegação)
+# ============================================================
+try:
+    conexao_base = conectar_banco(st.session_state.caminho_banco)
+except Exception as e:
+    log_erro("comparacao_conexao_base", e)
+    show_connection_error()
+    st.stop()
+
+# ============================================================
+# Seleção da referência bíblica
+# ============================================================
 st.markdown("---")
-st.markdown("### 📍 Selecione a Passagem para Comparar")
+st.subheader("📌 Selecione o texto para comparar")
 
-col1, col2, col3 = st.columns(3)
+try:
+    col_t1, col_t2 = st.columns(2)
 
-with col1:
-    testamentos = carregar_testamentos(conexao_ref)
-    testamento = st.selectbox(
-        "Testamento:",
-        testamentos["name"],
-        key="test_comp"
-    )
-    testamento_id = testamentos[testamentos["name"]
-                                == testamento]["id"].values[0]
-
-with col2:
-    livros = carregar_livros_testamento(conexao_ref, testamento_id)
-    livro = st.selectbox(
-        "Livro:",
-        livros["name"],
-        key="livro_comp"
-    )
-    livro_id = livros[livros["name"] == livro]["id"].values[0]
-
-with col3:
-    capitulos = carregar_capitulos(conexao_ref, livro_id)
-    capitulo = st.selectbox(
-        "Capítulo:",
-        capitulos["chapter"],
-        key="cap_comp"
-    )
-
-# Opções adicionais
-col1, col2 = st.columns([1, 3])
-
-with col1:
-    comparar_versiculo_especifico = st.checkbox(
-        "Comparar apenas um versículo",
-        help="Marque para comparar um versículo específico"
-    )
-
-with col2:
-    versiculo_especifico = None
-    if comparar_versiculo_especifico:
-        versiculo_especifico = st.number_input(
-            "Número do versículo:",
-            min_value=1,
-            value=1,
-            key="vers_comp"
-        )
-
-# Botão de comparação
-st.markdown("---")
-col1, col2, col3 = st.columns([2, 1, 2])
-with col2:
-    comparar_btn = st.button(
-        "⚖️ Comparar", type="primary", use_container_width=True)
-
-if comparar_btn:
-    with st.spinner("Carregando comparação..."):
-        try:
-            comparacao = comparar_versoes(
-                conexoes,
-                livro_id,
-                capitulo,
-                versiculo_especifico
-            )
-        except Exception as e:
-            st.error(f"❌ Erro ao realizar comparação: {e}")
+    with col_t1:
+        df_test = carregar_testamentos(conexao_base)
+        if df_test.empty:
+            st.error("Nenhum testamento encontrado no banco de dados.")
+            conexao_base.close()
             st.stop()
 
-    if not comparacao.empty:
-        st.success("✅ Comparação carregada com sucesso!")
+        testamento_nome = st.selectbox(
+            "Testamento",
+            df_test["name"],
+            key="cmp_testamento",
+        )
+        testamento_id = int(
+            df_test.loc[df_test["name"] == testamento_nome, "id"].iloc[0]
+        )
 
-        # Cabeçalho da comparação
-        st.markdown(f"## 📖 {livro} {capitulo}" +
-                    (f":{versiculo_especifico}" if versiculo_especifico else ""))
+    with col_t2:
+        df_livros = carregar_livros_testamento(conexao_base, testamento_id)
 
-        # Mostrar versões comparadas
-        # pyright: ignore[reportArgumentType, reportCallIssue]
-        versoes_comparadas = " vs. ".join(conexoes.keys()) # pyright: ignore[reportCallIssue, reportArgumentType]
-        st.caption(f"Comparando: {versoes_comparadas}")
+        if df_livros.empty:
+            st.error("Nenhum livro encontrado para o testamento selecionado.")
+            conexao_base.close()
+            st.stop()
 
-        st.markdown("---")
+        livro_nome = st.selectbox(
+            "Livro",
+            df_livros["name"],
+            key="cmp_livro",
+        )
 
-        # Tabs para diferentes visualizações
-        tab1, tab2, tab3 = st.tabs(["📊 Tabela", "📋 Lado a Lado", "📈 Análise"])
-
-        with tab1:
-            # Visualização em tabela
-            st.dataframe(
-                comparacao,
-                use_container_width=True,
-                height=600,
-                column_config={
-                    "Versículo": st.column_config.NumberColumn("Ver.", width="small")
-                }
+        # Garantir que o livro selecionado existe no DF
+        mask = df_livros["name"] == livro_nome
+        if not mask.any():
+            st.error(
+                "Não foi possível localizar o livro selecionado. "
+                "Por favor, selecione novamente o testamento e o livro."
             )
+            conexao_base.close()
+            st.stop()
 
-        with tab2:
-            # Visualização lado a lado
-            for idx, row in comparacao.iterrows():
-                versiculo_num = row['Versículo']
+        livro_id = int(df_livros.loc[mask, "id"].iloc[0])
 
-                st.markdown(f"#### Versículo {versiculo_num}")
+    df_caps = carregar_capitulos(conexao_base, livro_id)
+    if df_caps.empty:
+        st.error("Nenhum capítulo encontrado para o livro selecionado.")
+        conexao_base.close()
+        st.stop()
 
-                # Criar colunas dinamicamente baseado no número de versões
-                num_versoes = len(conexoes)
-                cols = st.columns(num_versoes)
+    lista_caps = sorted(df_caps["chapter"].tolist())
 
-                for i, (versao, col) in enumerate(zip(conexoes.keys(), cols)):
-                    with col:
-                        # pyright: ignore[reportCallIssue, reportArgumentType]
-                        texto = row[versao] if versao in row else "N/A" # pyright: ignore[reportCallIssue, reportArgumentType]
+    col_c1, col_c2 = st.columns(2)
+    with col_c1:
+        capitulo = st.selectbox(
+            "Capítulo",
+            lista_caps,
+            key="cmp_capitulo",
+        )
 
-                        # Cores diferentes para cada versão
-                        cores = ['#667eea', '#764ba2', '#f093fb']
-                        cor = cores[i % len(cores)]
+    with col_c2:
+        tipo_comparacao = st.radio(
+            "Comparar",
+            options=["Capítulo inteiro", "Versículo específico"],
+            horizontal=True,
+        )
 
-                        st.markdown(
-                            f"""
-                            <div style='padding: 15px; background-color: #f8f9fa; 
-                                        border-left: 4px solid {cor}; 
-                                        border-radius: 5px; height: 100%;'>
-                                <strong style='color: {cor};'>{versao}</strong><br>
-                                <span style='font-size: 0.95em; line-height: 1.6;'>{texto}</span>
-                            </div>
-                            """,
-                            unsafe_allow_html=True
-                        )
+    versiculo_especifico = None
+    if tipo_comparacao == "Versículo específico":
+        df_versos_base = carregar_versiculos(conexao_base, livro_id, capitulo)
+        if df_versos_base.empty:
+            st.error("Nenhum versículo encontrado para o capítulo selecionado.")
+            conexao_base.close()
+            st.stop()
 
-                st.markdown("---")
+        lista_versos = sorted(df_versos_base["Versículo"].tolist())
+        versiculo_especifico = st.selectbox(
+            "Versículo",
+            lista_versos,
+            key="cmp_versiculo",
+        )
 
-        with tab3:
-            # Análise de diferenças
-            st.markdown("### 📊 Análise de Diferenças")
+except Exception as e:
+    log_erro("comparacao_navegacao", e)
+    handle_database_error(e, "navegação")
+    conexao_base.close()
+    st.stop()
 
-            if len(conexoes) == 2:
-                versoes = list(conexoes.keys())
-                diferencas = 0
-                versiculos_diferentes = []
+# ============================================================
+# Seleção das versões para comparar
+# ============================================================
+st.markdown("---")
+st.subheader("📚 Versões para comparação")
 
-                for idx, row in comparacao.iterrows():
-                    # pyright: ignore[reportCallIssue, reportArgumentType]
-                    if row[versoes[0]] != row[versoes[1]]: # pyright: ignore[reportCallIssue, reportArgumentType]
-                        diferencas += 1
-                        versiculos_diferentes.append(row['Versículo'])
+todas_versoes = sorted(bancos.keys())
+default_selecao: List[str] = [stem_atual]
+outros = [v for v in todas_versoes if v != stem_atual]
+default_selecao += outros[:2]  # até 3 no total
 
-                total = len(comparacao)
-                percentual = (diferencas / total * 100) if total > 0 else 0
+versoes_escolhidas = st.multiselect(
+    "Escolha até 3 versões",
+    options=todas_versoes,
+    default=default_selecao[:3],
+    max_selections=3,
+)
 
-                col1, col2, col3 = st.columns(3)
+if not versoes_escolhidas:
+    st.info("Selecione pelo menos uma versão para comparar.")
+    conexao_base.close()
+    st.stop()
 
-                with col1:
-                    st.metric("Total de Versículos", total)
+if st.button("⚖️ Comparar versões", type="primary"):
+    st.session_state["cmp_disparar"] = True
 
-                with col2:
-                    st.metric("Versículos Diferentes", diferencas)
+if not st.session_state.get("cmp_disparar"):
+    conexao_base.close()
+    st.stop()
 
-                with col3:
-                    st.metric("Percentual de Diferença", f"{percentual:.1f}%")
+st.session_state["cmp_disparar"] = False
 
-                # Gráfico de diferenças
-                if versiculos_diferentes:
-                    st.markdown("#### 📍 Versículos com Diferenças")
-                    st.write(
-                        f"Versículos: {', '.join(map(str, versiculos_diferentes[:20]))}")
-                    if len(versiculos_diferentes) > 20:
-                        st.caption(
-                            f"... e mais {len(versiculos_diferentes) - 20} versículos")
+# ============================================================
+# Execução da comparação
+# ============================================================
+st.markdown("---")
+st.subheader("📖 Resultados da comparação")
 
-                # Estatísticas de palavras
-                st.markdown("#### 📝 Estatísticas de Palavras")
+comparacoes: Dict[str, pd.DataFrame] = {}
 
-                for versao in versoes:
-                    palavras_total = sum(len(str(row[versao]).split( # pyright: ignore[reportArgumentType] # type: ignore
-                    )) for _, row in comparacao.iterrows())  # type: ignore
-                    palavras_media = palavras_total / len(comparacao)
-                    st.write(
-                        f"**{versao}:** {palavras_total} palavras total | Média de {palavras_media:.1f} palavras/versículo")
+for versao in versoes_escolhidas:
+    caminho = bancos[versao]
+    try:
+        conn = conectar_banco(str(caminho))
+        df = carregar_versiculos(conn, livro_id, capitulo)
 
-            elif len(conexoes) == 3:
-                st.info(
-                    "💡 Análise detalhada disponível para comparação entre 2 versões.")
+        if df.empty:
+            st.warning(f"Nenhum versículo encontrado na versão {versao}.")
+            conn.close()
+            continue
 
-                # Estatísticas simples para 3 versões
-                versoes = list(conexoes.keys())
+        if tipo_comparacao == "Versículo específico":
+            df = df[df["Versículo"] == versiculo_especifico]
 
-                st.markdown("#### 📝 Estatísticas de Palavras")
-                for versao in versoes:
-                    # pyright: ignore[reportCallIssue, reportArgumentType]
-                    palavras_total = sum(
-                        len(str(row[versao]).split()) for _, row in comparacao.iterrows()) # pyright: ignore[reportCallIssue, reportArgumentType]
-                    palavras_media = palavras_total / len(comparacao)
-                    st.write(
-                        f"**{versao}:** {palavras_total} palavras | Média: {palavras_media:.1f}")
+        # Renomeia coluna de texto para o nome da versão
+        df = df[["Versículo", "Texto"]].copy()
+        df.rename(columns={"Texto": versao}, inplace=True)
+        comparacoes[versao] = df
 
-        # Opções de exportação
-        st.markdown("---")
-        st.subheader("📥 Exportar Comparação")
+        conn.close()
+    except Exception as e:
+        log_erro("comparacao_versao", e, detalhes=versao)
+        st.error(f"❌ Erro ao carregar dados da versão **{versao}**.")
 
-        col1, col2 = st.columns(2)
+if not comparacoes:
+    st.error("Não foi possível montar a tabela de comparação.")
+    conexao_base.close()
+    st.stop()
 
-        with col1:
-            nome_arquivo = f"comparacao_{livro}_{capitulo}_{versoes_comparadas.replace(' vs. ', '_')}"
-            exportar_csv(comparacao, nome_arquivo)
+# Merge por número de versículo
+dfs = list(comparacoes.values())
+df_merged = dfs[0]
+for d in dfs[1:]:
+    df_merged = df_merged.merge(on="Versículo", right=d, how="outer")
 
-        with col2:
-            exportar_xlsx(comparacao, nome_arquivo)
+df_merged = df_merged.sort_values("Versículo").reset_index(drop=True)
 
-        # Opção de adicionar anotação
-        st.markdown("---")
-        if st.button("📝 Adicionar Anotação sobre esta Comparação"):
-            st.session_state.anotacao_livro = livro
-            st.session_state.anotacao_capitulo = capitulo
-            st.session_state.anotacao_versiculo = versiculo_especifico if versiculo_especifico else 1
-            st.switch_page("pages/5_📝_Anotações.py")
+titulo_ref = f"{livro_nome} {capitulo}"
+if versiculo_especifico is not None:
+    titulo_ref += f":{versiculo_especifico}"
 
-    else:
-        st.warning("⚠️ Nenhum dado encontrado para comparação.")
+st.markdown(f"### 📍 {titulo_ref}")
 
-# Sidebar - Dicas e Exemplos
-with st.sidebar:
-    st.markdown("### 💡 Dicas de Uso")
+st.dataframe(
+    df_merged,
+    use_container_width=True,
+    hide_index=True,
+)
 
-    with st.expander("📚 Quando Comparar"):
-        st.markdown("""
-        **A comparação é útil para:**
-        
-        - 📖 Estudo aprofundado
-        - 🔍 Entender nuances
-        - ✍️ Preparar sermões
-        - 📝 Análise textual
-        - 🎓 Pesquisa teológica
-        """)
+st.caption("Cada coluna representa uma versão da Bíblia para o mesmo texto.")
 
-    with st.expander("⚖️ Escolhendo Versões"):
-        st.markdown("""
-        **Boas combinações:**
-        
-        - **ACF + NVI** - Tradicional vs Moderna
-        - **ARA + NAA** - Almeida Antigas
-        - **NTLH + NVT** - Linguagem Simples
-        - **ACF + ARC + NVI** - Três perspectivas
-        """)
+# Atalhos
+st.markdown("---")
+st.markdown("### ⚡ Atalhos")
 
-    with st.expander("🎯 Foco da Comparação"):
-        st.markdown("""
-        **Para versículo específico:**
-        - Análise palavra por palavra
-        - Diferenças teológicas
-        - Tradução de termos-chave
-        
-        **Para capítulo completo:**
-        - Fluxo narrativo
-        - Estilo literário
-        - Consistência temática
-        """)
-
-    st.markdown("---")
-    st.markdown("### ⚡ Atalhos")
-
-    if st.button("📖 Leitura", use_container_width=True):
+c1, c2 = st.columns(2)
+with c1:
+    if st.button("📖 Ir para Leitura", use_container_width=True):
         st.switch_page("pages/1_📖_Leitura.py")
-
-    if st.button("🔍 Buscar", use_container_width=True):
+with c2:
+    if st.button("🔍 Ir para Busca Avançada", use_container_width=True):
         st.switch_page("pages/3_🔍+_Busca_Avançada.py")
 
-# Fechar conexões
-for conexao in conexoes.values():
-    conexao.close()
+conexao_base.close()

@@ -1,8 +1,40 @@
-# Ignorar arquivos temporários
-*.log
-*.env
-node_modules/
-__pycache__/
+# Ambiente virtual
+.venv/
+venv/
 
-# Não ignorar a pasta .streamlit
-!.streamlit/
+# Cache e arquivos temporários
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.log
+*.tmp
+*.swp
+
+# Ferramentas de teste / build
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Diretórios de IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Configuração sensível
+.env
+.env.*
+*.env
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Logs da aplicação
+logs/
+
+# Arquivos do sistema operacional
+.DS_Store
+Thumbs.db

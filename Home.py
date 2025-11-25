@@ -1,287 +1,287 @@
 """
-Bíblia Interativa v2.0
-Página Principal (Home)
+Bíblia Interativa v2.0 - Página Principal
+
+Página inicial da aplicação com:
+- Seleção da versão da Bíblia (arquivos .sqlite em ./data)
+- Exibição de métricas rápidas (livros, capítulos, versículos)
+- Navegação para as páginas principais (Leitura, Busca, Anotações, Estatísticas)
+
+Compatível com: Python 3.12.x
+Autor: Edson Deveza
 """
 
+from __future__ import annotations
+
+import sqlite3
+from pathlib import Path
+from typing import Dict, List, Tuple
+
 import streamlit as st
-import os
 
-# Configuração da página (deve ser a primeira chamada Streamlit)
-st.set_page_config(
-    page_title="Bíblia Interativa",
-    page_icon="📖",
-    layout="wide",
-    initial_sidebar_state="expanded",
-    menu_items={
-        'Get Help': 'https://github.com/seu-usuario/biblia_interativa',
-        'Report a bug': "https://github.com/seu-usuario/biblia_interativa/issues",
-        'About': "# Bíblia Interativa v2.0\nUma ferramenta moderna para estudo da Palavra de Deus."
-    }
-)
 
-# Inicializar session_state
-if 'anotacoes' not in st.session_state:
-    st.session_state.anotacoes = {}
+# ============================================================
+# Configurações gerais
+# ============================================================
 
-if 'historico_buscas' not in st.session_state:
-    st.session_state.historico_buscas = []
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
 
-# Diretórios
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
+# Mapeamento opcional: código da versão → nome amigável
+BIBLE_VERSION_NAMES: Dict[str, str] = {
+    "ACF": "Almeida Corrigida e Fiel",
+    "ARA": "Almeida Revista e Atualizada",
+    "ARC": "Almeida Revista e Corrigida",
+    "AS21": "Almeida Século 21",
+    "JFAA": "Almeida Atualizada (JFAA)",
+    "KJA": "King James Atualizada",
+    "KJF": "King James Fiel",
+    "NAA": "Nova Almeida Atualizada",
+    "NBV": "Nova Bíblia Viva",
+    "NTLH": "Nova Tradução na Linguagem de Hoje",
+    "NVI": "Nova Versão Internacional",
+    "NVT": "Nova Versão Transformadora",
+    "TB": "Tradução Brasileira",
+}
 
-# === SIDEBAR ===
-with st.sidebar:
-    st.title("📖 Bíblia Interativa")
-    st.markdown("### Configurações Globais")
-    
-    # Escolha da versão
-    versoes = ["ACF", "ARA", "ARC", "AS21", "JFAA", "KJA", "KJF", "NAA", "NBV", "NTLH", "NVI", "NVT", "TB"]
-    
-    # Verificar versões disponíveis
-    versoes_disponiveis = []
-    for v in versoes:
-        if os.path.exists(os.path.join(DATA_DIR, f"{v}.sqlite")):
-            versoes_disponiveis.append(v)
-    
-    if versoes_disponiveis:
-        if 'versao_selecionada' not in st.session_state:
-            st.session_state.versao_selecionada = versoes_disponiveis[0]
-        
-        versao = st.selectbox(
-            "🔖 Versão da Bíblia",
-            versoes_disponiveis,
-            index=versoes_disponiveis.index(st.session_state.versao_selecionada),
-            help="Selecione a tradução bíblica",
-            key="select_versao"
+
+# ============================================================
+# Funções auxiliares
+# ============================================================
+
+
+def listar_bancos_disponiveis(data_dir: Path) -> List[Path]:
+    """Retorna a lista de arquivos .sqlite disponíveis na pasta data."""
+    if not data_dir.exists():
+        return []
+    return sorted(data_dir.glob("*.sqlite"))
+
+
+def nome_amigavel_versao(stem: str) -> str:
+    """
+    Converte o nome do arquivo (stem) em um nome mais amigável.
+
+    Ex.: "ACF" -> "ACF - Almeida Corrigida e Fiel"
+    """
+    base = stem.upper()
+    descricao = BIBLE_VERSION_NAMES.get(base)
+    if descricao:
+        return f"{base} – {descricao}"
+    return base
+
+
+def carregar_metricas_biblia(caminho_banco: Path) -> Tuple[int, int, int]:
+    """
+    Calcula métricas básicas da Bíblia:
+
+    - quantidade de livros
+    - quantidade de capítulos
+    - quantidade de versículos
+
+    Pressupõe uma tabela `verse` com colunas:
+    - book_id
+    - chapter
+    - verse (ou equivalente)
+
+    Se algo der errado, retorna (0, 0, 0).
+    """
+    try:
+        conn = sqlite3.connect(caminho_banco)
+        cur = conn.cursor()
+
+        # n_livros
+        cur.execute("SELECT COUNT(DISTINCT book_id) FROM verse;")
+        n_livros = cur.fetchone()[0] or 0
+
+        # n_capitulos (combinação livro + capítulo)
+        cur.execute(
+            """
+            SELECT COUNT(DISTINCT book_id || '-' || chapter)
+            FROM verse;
+            """
         )
-        
-        st.session_state.versao_selecionada = versao
-        st.session_state.caminho_banco = os.path.join(DATA_DIR, f"{versao}.sqlite")
-        
-        st.success(f"✓ Usando: **{versao}**")
-    else:
-        st.error("❌ Nenhuma versão encontrada!")
-        st.info("Coloque os arquivos .sqlite na pasta `data/`")
-    
-    st.markdown("---")
-    
-    # Estatísticas rápidas
-    st.markdown("### 📊 Estatísticas")
-    
-    col1, col2 = st.columns(2)
+        n_capitulos = cur.fetchone()[0] or 0
+
+        # n_versiculos
+        cur.execute("SELECT COUNT(*) FROM verse;")
+        n_versiculos = cur.fetchone()[0] or 0
+
+        conn.close()
+        return int(n_livros), int(n_capitulos), int(n_versiculos)
+    except Exception:
+        # Se quiser, aqui você pode integrar com seu sistema de logger
+        # (ex.: log_erro("carregar_metricas_biblia", e, ...))
+        return 0, 0, 0
+
+
+def inicializar_estado() -> None:
+    """Garante chaves básicas no session_state."""
+    if "caminho_banco" not in st.session_state:
+        st.session_state.caminho_banco = None
+    if "versao_biblia" not in st.session_state:
+        st.session_state.versao_biblia = None
+
+
+# ============================================================
+# Layout da página
+# ============================================================
+
+
+def mostrar_header() -> None:
+    """Cabeçalho principal da aplicação."""
+    st.set_page_config(
+        page_title="Bíblia Interativa",
+        page_icon="📖",
+        layout="wide",
+    )
+
+    st.title("📖 Bíblia Interativa")
+    st.caption("Estudo bíblico com múltiplas versões, buscas avançadas e anotações.")
+
+
+def selecionar_versao(bancos: List[Path]) -> Path | None:
+    """
+    Exibe o seletor de versões disponíveis.
+
+    Atualiza:
+    - st.session_state.caminho_banco
+    - st.session_state.versao_biblia
+    """
+    if not bancos:
+        st.error("❌ Nenhuma versão encontrada na pasta `data/`.")
+        st.info(
+            "Coloque os arquivos `.sqlite` na pasta `data/` "
+            "(ex.: `ACF.sqlite`, `ARA.sqlite`, etc.)."
+        )
+        return None
+
+    # Mapeia nome exibido → Path
+    opcoes = {nome_amigavel_versao(b.stem): b for b in bancos}
+
+    # Define valor padrão (se já tiver no estado, tenta reaproveitar)
+    default_label = None
+    if st.session_state.caminho_banco:
+        atual = Path(st.session_state.caminho_banco)
+        for label, path in opcoes.items():
+            if path == atual:
+                default_label = label
+                break
+
+    st.subheader("📚 Selecione a versão da Bíblia")
+    label_escolhida = st.selectbox(
+        "Versão disponível (arquivos .sqlite detectados em `./data`):",
+        options=list(opcoes.keys()),
+        index=(
+            list(opcoes.keys()).index(default_label)
+            if default_label in opcoes
+            else 0
+        ),
+    )
+
+    caminho_escolhido = opcoes[label_escolhida]
+
+    # Atualiza session_state
+    st.session_state.caminho_banco = str(caminho_escolhido)
+    st.session_state.versao_biblia = Path(caminho_escolhido).stem.upper()
+
+    st.success(f"✅ Usando: **{label_escolhida}**")
+    return caminho_escolhido
+
+
+def mostrar_metricas(caminho_banco: Path | None) -> None:
+    """Mostra métricas rápidas da Bíblia selecionada."""
+    st.subheader("📊 Visão geral da Bíblia")
+
+    if caminho_banco is None:
+        st.info("Selecione uma versão para ver as estatísticas.")
+        return
+
+    n_livros, n_capitulos, n_versiculos = carregar_metricas_biblia(caminho_banco)
+
+    col1, col2, col3 = st.columns(3)
     with col1:
-        total_anotacoes = len(st.session_state.anotacoes)
-        st.metric("Anotações", total_anotacoes)
-    
+        st.metric("Livros", f"{n_livros:,}".replace(",", "."))
     with col2:
-        total_buscas = len(st.session_state.historico_buscas)
-        st.metric("Buscas", total_buscas)
-    
+        st.metric("Capítulos", f"{n_capitulos:,}".replace(",", "."))
+    with col3:
+        st.metric("Versículos", f"{n_versiculos:,}".replace(",", "."))
+
+
+def mostrar_navegacao() -> None:
+    """Bloco com atalhos para as páginas principais."""
+    st.subheader("🚀 Acesse as funcionalidades")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.markdown("### Leitura")
+        st.write("Leia capítulos, altere versão e acompanhe a leitura de forma contínua.")
+        st.page_link(
+            "pages/1_📖_Leitura.py",
+            label="Ir para Leitura",
+        )
+
+    with col2:
+        st.markdown("### Buscas e Comparação")
+        st.write(
+            "- Busca simples por palavra ou expressão\n"
+            "- Busca avançada com filtros\n"
+            "- Comparação de versões lado a lado"
+        )
+        st.page_link(
+            "pages/2_🔍_Busca_Simples.py",
+            label="Busca Simples",
+        )
+        st.page_link(
+            "pages/3_🔍+_Busca_Avançada.py",
+            label="Busca Avançada",
+        )
+        st.page_link(
+            "pages/4_⚖️_Comparação.py",
+            label="Comparação de Versões",
+        )
+
+    with col3:
+        st.markdown("### Anotações & Estatísticas")
+        st.write(
+            "- Anotações por versículo\n"
+            "- Histórico de estudos\n"
+            "- Estatísticas de uso"
+        )
+        st.page_link(
+            "pages/5_📝_Anotações.py",
+            label="Anotações",
+        )
+        st.page_link(
+            "pages/6_📊_Estatísticas.py",
+            label="Estatísticas",
+        )
+
+
+def mostrar_rodape() -> None:
+    """Rodapé com informações gerais."""
     st.markdown("---")
-    
-    # Links rápidos
-    st.markdown("### 🔗 Acesso Rápido")
-    
-    if st.button("📖 Leitura", use_container_width=True):
-        st.switch_page("pages/1_📖_Leitura.py")
-    
-    if st.button("🔍 Buscar", use_container_width=True):
-        st.switch_page("pages/3_🔍+_Busca_Avançada.py")
-    
-    if st.button("📝 Anotações", use_container_width=True):
-        st.switch_page("pages/5_📝_Anotações.py")
-    
-    st.markdown("---")
-    
-    # Rodapé
-    st.markdown(
-        """
-        <div style='text-align: center; padding: 20px 0;'>
-            <small>
-                💖 Desenvolvido para estudo da Palavra<br>
-                <strong>v2.0</strong> | 2024
-            </small>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-# === CONTEÚDO PRINCIPAL ===
-st.title("📖 Bem-vindo à Bíblia Interativa")
-
-st.markdown("""
-<div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-            padding: 30px; border-radius: 10px; color: white; margin: 20px 0;'>
-    <h2 style='margin: 0; color: white;'>✨ Uma nova forma de estudar a Palavra de Deus</h2>
-    <p style='margin: 10px 0 0 0; font-size: 1.1em;'>
-        Ferramentas modernas para leitura, busca, comparação e anotações bíblicas.
-    </p>
-</div>
-""", unsafe_allow_html=True)
-
-# Seção de funcionalidades
-st.markdown("## 🎯 Funcionalidades")
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.markdown("""
-    ### 📖 Leitura
-    
-    Navegue pela Bíblia de forma intuitiva:
-    - Por testamento
-    - Por livro
-    - Por capítulo
-    - Visualização clara
-    """)
-    st.page_link(
-        "pages/1_📖_Leitura.py",
-        label="Ir para Leitura →",
-        icon="📖",
-    )
-
-with col2:
-    st.markdown("""
-    ### 🔍 Busca Avançada
-    
-    Encontre o que procura:
-    - Múltiplas palavras
-    - Operadores lógicos
-    - Filtros precisos
-    - Histórico de buscas
-    """)
-    st.page_link(
-        "pages/3_🔍+_Busca_Avançada.py",
-        label="Ir para Busca →",
-        icon="🔍",
-    )
-
-with col3:
-    st.markdown("""
-    ### 📝 Anotações
-    
-    Organize seus estudos:
-    - Notas por versículo
-    - Tags personalizadas
-    - Backup/Restauração
-    - Estatísticas
-    """)
-    st.page_link(
-        "pages/5_📝_Anotações.py",
-        label="Ir para Anotações →",
-        icon="📝",
+    st.caption(
+        "Bíblia Interativa v2.0 · Desenvolvido em Python 3.12 + Streamlit · "
+        "Projeto pessoal de estudo bíblico e tecnologia."
     )
 
 
-st.markdown("---")
+# ============================================================
+# Função principal (entrypoint)
+# ============================================================
 
-# Seção de novidades
-col1, col2 = st.columns(2)
 
-with col1:
-    st.markdown("""
-    ### ⚖️ Comparação de Versões
-    
-    **Novidade!** Compare até 3 traduções lado a lado.
-    
-    Perfeito para:
-    - Estudos aprofundados
-    - Compreender nuances
-    - Análise textual
-    - Ensino e pregação
-    """)
-    
-    if st.button("🔍 Comparar Versões", key="btn_comparar", use_container_width=True):
-        st.switch_page("pages/4_⚖️_Comparação.py")
+def main() -> None:
+    inicializar_estado()
+    mostrar_header()
 
-with col2:
-    st.markdown("""
-    ### 🎓 Como Usar
-    
-    **Passo a passo:**
-    
-    1. 📌 Escolha uma versão no menu lateral
-    2. 🔍 Use a navegação ou busca
-    3. 📝 Crie anotações durante o estudo
-    4. 💾 Faça backup regularmente
-    """)
-    
-    with st.expander("💡 Dicas Avançadas"):
-        st.markdown("""
-        - Use **tags** nas anotações para organizar temas
-        - A **busca avançada** aceita múltiplas palavras
-        - Compare versões para entender melhor o texto
-        - Exporte seus estudos em PDF, Excel ou CSV
-        """)
+    bancos = listar_bancos_disponiveis(DATA_DIR)
+    caminho_banco = selecionar_versao(bancos)
 
-# Versículo do dia
-st.markdown("---")
-st.markdown("## 💭 Reflexão")
+    mostrar_metricas(caminho_banco)
+    mostrar_navegacao()
+    mostrar_rodape()
 
-import random
-versiculos_inspiracao = [
-    ("Salmos 119:105", "Lâmpada para os meus pés é a tua palavra e luz, para o meu caminho."),
-    ("2 Timóteo 3:16", "Toda Escritura é inspirada por Deus e útil para o ensino, para a repreensão, para a correção, para a educação na justiça."),
-    ("Josué 1:8", "Não cesses de falar deste Livro da Lei; antes, medita nele dia e noite, para que tenhas cuidado de fazer segundo tudo quanto nele está escrito."),
-    ("Hebreus 4:12", "Porque a palavra de Deus é viva, e eficaz, e mais cortante do que qualquer espada de dois gumes."),
-    ("Mateus 4:4", "Não só de pão viverá o homem, mas de toda palavra que procede da boca de Deus."),
-]
 
-ref, texto = random.choice(versiculos_inspiracao)
-
-st.info(f"""
-**{ref}**
-
-*"{texto}"*
-""")
-
-# Cards de recursos
-st.markdown("---")
-st.markdown("## 📚 Recursos Disponíveis")
-
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    with st.container():
-        st.markdown("#### 📖 Múltiplas Versões")
-        st.caption(f"{len(versoes_disponiveis)} traduções disponíveis")
-
-with col2:
-    with st.container():
-        st.markdown("#### 🔍 Busca Inteligente")
-        st.caption("Operadores lógicos E/OU")
-
-with col3:
-    with st.container():
-        st.markdown("#### 💾 Exportação")
-        st.caption("PDF, Excel e CSV")
-
-with col4:
-    with st.container():
-        st.markdown("#### 📱 Responsivo")
-        st.caption("Funciona em todos dispositivos")
-
-# Call to action
-st.markdown("---")
-
-col1, col2, col3 = st.columns([1, 2, 1])
-
-with col2:
-    st.markdown("""
-    <div style='text-align: center; padding: 30px; 
-                background-color: #f0f2f6; border-radius: 10px;'>
-        <h3 style='margin: 0 0 20px 0;'>Pronto para começar?</h3>
-        <p>Escolha uma funcionalidade no menu ao lado e comece a explorar a Palavra de Deus!</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Informações técnicas (opcional, pode ser colapsado)
-with st.expander("ℹ️ Informações Técnicas"):
-    st.markdown(f"""
-    **Versão do Sistema:** 2.0  
-    **Versões Disponíveis:** {', '.join(versoes_disponiveis) if versoes_disponiveis else 'Nenhuma'}  
-    **Diretório de Dados:** `{DATA_DIR}`  
-    **Total de Anotações:** {len(st.session_state.anotacoes)}  
-    **Total de Buscas:** {len(st.session_state.historico_buscas)}
-    """)
+if __name__ == "__main__":
+    main()

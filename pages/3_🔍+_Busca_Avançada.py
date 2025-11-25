@@ -1,392 +1,350 @@
 """
-Página de Busca Avançada
+Página de Busca Avançada.
+
 Busca com múltiplas palavras, operadores lógicos e filtros
+por testamento, livro e frase exata.
+
+Autor: Edson Deveza
+Data: 2025
+Versão: 2.1
 """
 
-import streamlit as st
-import sys
-import os
-
-# Adicionar diretório raiz ao path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from src.database import conectar_banco, buscar_versiculos_avancada, carregar_todos_livros
+from __future__ import annotations
+from src.ui_utils import garantir_versao_selecionada
+from src.logger import log_erro
+from src.error_handler import handle_database_error, show_connection_error
 from src.export import exportar_csv, exportar_xlsx, exportar_pdf, exportar_html
+from src.database import (
+    conectar_banco,
+    carregar_testamentos,
+    carregar_livros_testamento,
+    buscar_versiculos_avancada,
+)
 
-st.set_page_config(page_title="Busca Avançada", page_icon="🔍", layout="wide")
-# =========================
-# SELETOR DE VERSÃO GLOBAL
-# =========================
+import sys
+import time
+from pathlib import Path
+from typing import Optional
 
-with st.sidebar:
-    st.markdown("### 📖 Versão da Bíblia")
+import streamlit as st
 
-    # Descobrir versões disponíveis (arquivos .sqlite da pasta data)
-    raiz_projeto = os.path.dirname(os.path.dirname(__file__))  # .../biblia_interativa
-    pasta_biblias = os.path.join(raiz_projeto, "data")         # .../biblia_interativa/data
-
-    if not os.path.isdir(pasta_biblias):
-        st.error(f"❌ Pasta de bíblias não encontrada: {pasta_biblias}")
-    else:
-        versoes_disponiveis = [
-            f.replace(".sqlite", "")
-            for f in os.listdir(pasta_biblias)
-            if f.endswith(".sqlite")
-        ]
-
-        if not versoes_disponiveis:
-            st.error("❌ Nenhuma versão (.sqlite) encontrada na pasta data.")
-        else:
-            # Valor atual (se ainda não existir, usa a primeira versão)
-            versao_atual = st.session_state.get("versao_selecionada", versoes_disponiveis[0])
-
-            versao_escolhida = st.selectbox(
-                "Versão:",
-                versoes_disponiveis,
-                index=versoes_disponiveis.index(versao_atual),
-                key="versao_global_selector",
-            )
-
-            if versao_escolhida != versao_atual:
-                st.session_state.versao_selecionada = versao_escolhida
-                st.session_state.caminho_banco = os.path.join(
-                    pasta_biblias, versao_escolhida + ".sqlite"
-                )
-                st.rerun()
+# Ajuste de path para permitir "from src...."
+RAIZ_PROJETO = Path(__file__).parent.parent.absolute()
+if str(RAIZ_PROJETO) not in sys.path:
+    sys.path.insert(0, str(RAIZ_PROJETO))
 
 
-st.title("🔍+ Busca Avançada")
+# ============================================================
+# Configuração da página
+# ============================================================
+st.set_page_config(
+    page_title="Busca Avançada",
+    page_icon="🔍➕",
+    layout="wide",
+)
 
-# Verificar se a versão foi selecionada
-if 'caminho_banco' not in st.session_state:
-    st.warning("⚠️ Por favor, selecione uma versão da Bíblia na página inicial.")
-    if st.button("← Voltar para Home"):
-        st.switch_page("Home.py")
-    st.stop()
+st.title("🔍➕ Busca Avançada")
 
-# Conectar ao banco
+
+# ============================================================
+# Verificações iniciais de sessão
+# ============================================================
+if "historico_buscas" not in st.session_state:
+    st.session_state.historico_buscas = []
+
+# Garante versão selecionada
+caminho_banco = garantir_versao_selecionada()
+
+# ============================================================
+# Conexão com o banco
+# ============================================================
 try:
-    conexao = conectar_banco(st.session_state.caminho_banco)
-    livros = carregar_todos_livros(conexao)
+    conexao = conectar_banco(str(caminho_banco))
 except Exception as e:
-    st.error(f"❌ Erro ao conectar ao banco de dados: {e}")
+    log_erro("busca_avancada_conexao", e)
+    show_connection_error()
     st.stop()
 
-# Interface
-st.markdown(f"**Versão atual:** {st.session_state.versao_selecionada}")
-st.info("💡 **Busca Avançada:** Use múltiplas palavras, operadores lógicos e filtros precisos para encontrar exatamente o que procura.")
+versao_atual = st.session_state.get("versao_biblia") or st.session_state.get(
+    "versao_selecionada", "N/D"
+)
+st.markdown(f"**Versão atual:** {versao_atual}")
 
-# Layout em duas colunas
-col_esquerda, col_direita = st.columns([2, 1])
+st.info(
+    "💡 **Use a busca avançada quando precisar combinar palavras, "
+    "filtrar por testamento/livro ou buscar uma frase exata.**"
+)
 
-with col_esquerda:
-    st.markdown("### 🔤 Termos de Busca")
-    
-    # Campo de busca
-    termo_busca = st.text_input(
-        "Digite as palavras para buscar:",
-        placeholder="Ex: amor fé esperança",
-        help="Separe múltiplas palavras com espaço",
-        key="input_busca_avancada"
-    )
-    
-    # Tipo de busca
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        tipo_busca = st.radio(
-            "Tipo de busca:",
-            ["Palavras individuais", "Frase exata"],
-            help="Palavras individuais: busca cada palavra separadamente\nFrase exata: busca a frase completa"
-        )
-    
-    with col2:
-        # Operador lógico (só para palavras individuais)
-        if tipo_busca == "Palavras individuais":
-            operador = st.radio(
-                "Operador lógico:",
-                ["E (AND)", "OU (OR)"],
-                help="E: todas as palavras devem aparecer\nOU: qualquer palavra pode aparecer"
-            )
-            operador_logico = "E" if operador == "E (AND)" else "OU"
-        else:
-            operador_logico = "E"
-            st.info("💡 Na busca por frase exata, as palavras devem aparecer na ordem digitada.")
 
-with col_direita:
-    st.markdown("### 🎯 Filtros")
-    
-    # Filtro de testamento
-    filtro_testamento = st.selectbox(
-        "Testamento:",
-        ["Ambos", "Velho Testamento", "Novo Testamento"],
-        help="Limitar busca a um testamento específico"
-    )
-    
-    testamento_id = None
-    if filtro_testamento == "Velho Testamento":
-        testamento_id = 1
-    elif filtro_testamento == "Novo Testamento":
-        testamento_id = 2
-    
-    # Filtro de livro
-    usar_filtro_livro = st.checkbox("Buscar em livro específico")
-    
-    livro_id = None
-    if usar_filtro_livro:
-        livro_selecionado = st.selectbox(
-            "Livro:",
-            livros["name"],
-            help="Buscar apenas neste livro"
-        )
-        livro_id = livros[livros["name"] == livro_selecionado]["id"].values[0]
+# ============================================================
+# Carregamento de testamentos e livros
+# ============================================================
+try:
+    df_test = carregar_testamentos(conexao)
+except Exception as e:
+    log_erro("busca_avancada_testamentos", e)
+    handle_database_error(e, "carregamento de testamentos")
+    conexao.close()
+    st.stop()
 
-# Botão de busca centralizado
+if df_test.empty:
+    st.error("Nenhum testamento encontrado no banco de dados.")
+    conexao.close()
+    st.stop()
+
+map_test_id_nome = {int(r["id"]): r["name"] for _, r in df_test.iterrows()}
+map_test_nome_id = {v: k for k, v in map_test_id_nome.items()}
+
+
+# ============================================================
+# Formulário da Busca Avançada
+# ============================================================
 st.markdown("---")
-col1, col2, col3 = st.columns([2, 1, 2])
-with col2:
-    buscar = st.button("🔍 Buscar", type="primary", use_container_width=True)
+st.subheader("📝 Parâmetros da busca avançada")
 
-if buscar:
-    if not termo_busca:
-        st.warning("⚠️ Por favor, digite algo para buscar.")
-    else:
-        # Preparar termos
-        if tipo_busca == "Palavras individuais":
-            termos = termo_busca.split()
-        else:
-            termos = termo_busca
-        
-        # Realizar busca
-        with st.spinner(f"Buscando por '{termo_busca}'..."):
-            resultados = buscar_versiculos_avancada(
-                conexao,
-                termos,
-                operador=operador_logico,
-                testamento_id=testamento_id,
-                livro_id=livro_id,
-                busca_exata=(tipo_busca == "Frase exata")
-            )
-        
-        if not resultados.empty:
-            # Salvar no histórico
-            if 'historico_buscas' not in st.session_state:
-                st.session_state.historico_buscas = []
-            
-            st.session_state.historico_buscas.insert(0, {
-                'termo': termo_busca,
-                'resultados': len(resultados),
-                'tipo': 'Busca Avançada',
-                'operador': operador_logico if tipo_busca == "Palavras individuais" else "Frase",
-                'testamento': filtro_testamento,
-                'livro': livro_selecionado if usar_filtro_livro else "Todos"
-            })
-            
-            st.session_state.historico_buscas = st.session_state.historico_buscas[:10]
-            
-            # Exibir resultados
-            st.success(f"✅ Encontrados **{len(resultados)}** versículo(s)")
-            
-            # Estatísticas detalhadas
-            st.markdown("### 📊 Estatísticas da Busca")
-            
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                st.metric("Total de Versículos", len(resultados))
-            
-            with col2:
-                livros_unicos = resultados['Livro'].nunique()
-                st.metric("Livros Diferentes", livros_unicos)
-            
-            with col3:
-                capitulos_unicos = len(resultados.groupby(['Livro', 'Capítulo']))
-                st.metric("Capítulos Diferentes", capitulos_unicos)
-            
-            with col4:
-                palavras_termo = len(termo_busca.split())
-                st.metric("Palavras Buscadas", palavras_termo)
-            
-            # Top 5 livros com mais resultados
-            with st.expander("📚 Top 5 Livros com Mais Resultados"):
-                top_livros = resultados['Livro'].value_counts().head(5)
-                for livro, count in top_livros.items():
-                    st.write(f"**{livro}:** {count} versículo(s)")
-            
-            st.markdown("---")
-            
-            # Tabs para visualização
-            tab1, tab2, tab3 = st.tabs(["📊 Tabela Completa", "📋 Lista Formatada", "📈 Análise"])
-            
-            with tab1:
-                st.dataframe(
-                    resultados,
-                    use_container_width=True,
-                    hide_index=True,
-                    height=500
-                )
-            
-            with tab2:
-                # Agrupar por livro
-                agrupar = st.checkbox("Agrupar por livro", value=False)
-                
-                if agrupar:
-                    for livro in resultados['Livro'].unique():
-                        with st.expander(f"📖 {livro}"):
-                            livro_resultados = resultados[resultados['Livro'] == livro]
-                            for idx, row in livro_resultados.iterrows():
-                                st.markdown(
-                                    f"""
-                                    <div style='padding: 8px; margin-bottom: 8px; 
-                                                background-color: #f8f9fa; 
-                                                border-left: 3px solid #667eea;'>
-                                        <strong style='color: #667eea;'>
-                                            {row['Capítulo']}:{row['Versículo']}
-                                        </strong> - {row['Texto']}
-                                    </div>
-                                    """,
-                                    unsafe_allow_html=True
-                                )
-                else:
-                    for idx, row in resultados.iterrows():
-                        col1, col2 = st.columns([1, 11])
-                        
-                        with col1:
-                            if st.button("📝", key=f"anot_av_{idx}", help="Adicionar anotação"):
-                                st.session_state.anotacao_livro = row['Livro']
-                                st.session_state.anotacao_capitulo = row['Capítulo']
-                                st.session_state.anotacao_versiculo = row['Versículo']
-                                st.switch_page("pages/5_📝_Anotações.py")
-                        
-                        with col2:
-                            st.markdown(
-                                f"""
-                                <div style='padding: 10px; background-color: #f8f9fa; 
-                                            border-left: 4px solid #764ba2; border-radius: 5px; 
-                                            margin-bottom: 10px;'>
-                                    <strong style='color: #764ba2;'>
-                                        {row['Livro']} {row['Capítulo']}:{row['Versículo']}
-                                    </strong><br>
-                                    <span style='font-size: 1.05em;'>{row['Texto']}</span>
-                                </div>
-                                """,
-                                unsafe_allow_html=True
-                            )
-            
-            with tab3:
-                st.markdown("#### 📈 Distribuição dos Resultados")
-                
-                # Gráfico de distribuição por livro
-                import pandas as pd
-                livros_count = resultados['Livro'].value_counts().head(10)
-                
-                st.bar_chart(livros_count)
-                
-                # Distribuição VT vs NT
-                st.markdown("#### 📊 Testamentos")
-                col1, col2 = st.columns(2)
-                
-                # Lista simplificada de livros do VT
-                livros_vt = ['Gênesis', 'Êxodo', 'Levítico', 'Números', 'Deuteronômio',
-                             'Josué', 'Juízes', 'Rute', 'I Samuel', 'II Samuel',
-                             'I Reis', 'II Reis', 'I Crônicas', 'II Crônicas',
-                             'Esdras', 'Neemias', 'Ester', 'Jó', 'Salmos', 'Provérbios',
-                             'Eclesiastes', 'Cantares', 'Isaías', 'Jeremias', 'Lamentações',
-                             'Ezequiel', 'Daniel', 'Oséias', 'Joel', 'Amós', 'Obadias',
-                             'Jonas', 'Miquéias', 'Naum', 'Habacuque', 'Sofonias',
-                             'Ageu', 'Zacarias', 'Malaquias']
-                
-                vt_count = len(resultados[resultados['Livro'].isin(livros_vt)])
-                nt_count = len(resultados) - vt_count
-                
-                with col1:
-                    st.metric("Velho Testamento", vt_count, 
-                             f"{vt_count/len(resultados)*100:.1f}%")
-                
-                with col2:
-                    st.metric("Novo Testamento", nt_count,
-                             f"{nt_count/len(resultados)*100:.1f}%")
-            
-            # Exportação
-            st.markdown("---")
-            st.subheader("📥 Exportar Resultados")
-            
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                exportar_csv(resultados, f"busca_avancada_{termo_busca}")
-            
-            with col2:
-                exportar_xlsx(resultados, f"busca_avancada_{termo_busca}")
-            
-            with col3:
-                exportar_pdf(resultados, f"Busca Avançada: {termo_busca}", f"busca_avancada_{termo_busca}")
-            
-            with col4:
-                exportar_html(resultados, f"Busca Avançada: {termo_busca}", f"busca_avancada_{termo_busca}")
-        
-        else:
-            st.warning(f"⚠️ Nenhum versículo encontrado.")
-            
-            with st.expander("💡 Sugestões para melhorar sua busca"):
-                st.markdown("""
-                **Tente:**
-                
-                1. **Verificar ortografia** - Confira se as palavras estão corretas
-                2. **Usar sinônimos** - Ex: "alegria" em vez de "felicidade"
-                3. **Remover filtros** - Busque em "Ambos" os testamentos
-                4. **Operador OU** - Encontre versículos com qualquer uma das palavras
-                5. **Palavras-chave gerais** - Use termos mais abrangentes
-                6. **Busca Simples** - Tente a busca simples primeiro
-                """)
+with st.form("form_busca_avancada"):
+    col_termo, col_frase = st.columns([3, 1])
 
-# Sidebar - Histórico e Dicas
-with st.sidebar:
-    st.markdown("### 📜 Histórico de Buscas Avançadas")
-    
-    if 'historico_buscas' in st.session_state and st.session_state.historico_buscas:
-        buscas_avancadas = [b for b in st.session_state.historico_buscas if b['tipo'] == 'Busca Avançada']
-        
-        if buscas_avancadas:
-            for i, busca in enumerate(buscas_avancadas[:5]):
-                with st.expander(f"🔍 '{busca['termo']}'"):
-                    st.write(f"**Resultados:** {busca['resultados']}")
-                    st.write(f"**Operador:** {busca['operador']}")
-                    st.write(f"**Testamento:** {busca['testamento']}")
-                    st.write(f"**Livro:** {busca['livro']}")
-        else:
-            st.info("Nenhuma busca avançada no histórico.")
+    with col_termo:
+        termos_raw = st.text_input(
+            "Palavras ou frase para buscar",
+            placeholder="Ex.: graça salvadora; fé; amor de Deus; justificação pela fé...",
+        )
+
+    with col_frase:
+        busca_exata = st.checkbox(
+            "Frase exata?",
+            help="Se marcado, a busca será pela frase completa, na ordem digitada.",
+            value=False,
+        )
+
+    col_op, col_test, col_livro = st.columns([1, 1.2, 2])
+
+    with col_op:
+        operador = st.selectbox(
+            "Operador",
+            options=["E", "OU"],
+            index=0,
+            help="E = todas as palavras devem aparecer; OU = qualquer uma das palavras.",
+            disabled=busca_exata,
+        )
+
+    with col_test:
+        filtro_testamento = st.selectbox(
+            "Testamento",
+            options=["Todos"] + list(map_test_nome_id.keys()),
+            index=0,
+        )
+
+    livros_opcoes = ["Todos"]
+    livros_dict: dict[str, int] = {}
+
+    testamento_id: Optional[int]
+    if filtro_testamento == "Todos":
+        testamento_id = None
     else:
-        st.info("Nenhuma busca realizada ainda.")
-    
+        testamento_id = int(map_test_nome_id[filtro_testamento])
+        try:
+            df_livros = carregar_livros_testamento(conexao, testamento_id)
+            for _, row in df_livros.iterrows():
+                nome_livro = row["name"]
+                livros_opcoes.append(nome_livro)
+                livros_dict[nome_livro] = int(row["id"])
+        except Exception as e:
+            log_erro("busca_avancada_livros", e)
+            handle_database_error(e, "carregamento de livros")
+            conexao.close()
+            st.stop()
+
+    with col_livro:
+        livro_escolhido = st.selectbox(
+            "Livro",
+            options=livros_opcoes,
+            index=0,
+        )
+
+    col_botao, col_hint = st.columns([1, 3])
+    with col_botao:
+        disparar = st.form_submit_button("🔍 Buscar", use_container_width=True)
+
+    with col_hint:
+        st.write(
+            "- Separe múltiplas palavras por espaço (ex.: `graça fé salvação`).  \n"
+            "- Use **Frase exata** para buscar uma expressão completa.  \n"
+            "- Combine Testamento + Livro para refinar ainda mais a busca."
+        )
+
+livro_id: Optional[int]
+if livro_escolhido == "Todos":
+    livro_id = None
+else:
+    livro_id = livros_dict.get(livro_escolhido)
+
+
+# ============================================================
+# Execução da busca avançada
+# ============================================================
+def executar_busca_avancada():
+    termo_limpo = termos_raw.strip()
+    if not termo_limpo:
+        st.warning("Digite pelo menos uma palavra ou frase para buscar.")
+        return
+
+    if busca_exata:
+        termos = [termo_limpo]
+    else:
+        termos = [t for t in termo_limpo.split() if t]
+
+    try:
+        inicio = time.time()
+
+        resultados = buscar_versiculos_avancada(
+            conexao=conexao,
+            termos=termos,
+            operador=operador,
+            testamento_id=testamento_id,
+            livro_id=livro_id,
+            busca_exata=busca_exata,
+        )
+
+        fim = time.time()
+        tempo_ms = int((fim - inicio) * 1000)
+    except Exception as e:
+        log_erro(
+            "busca_avancada_execucao",
+            e,
+            detalhes=f"termos={termos}, operador={operador}",
+        )
+        handle_database_error(e, "busca avançada")
+        return
+
+    if resultados is None or resultados.empty:
+        st.warning(
+            f"⚠️ Nenhum versículo encontrado com os termos '{termos_raw}'."
+        )
+        st.info(
+            "💡 **Sugestões:**\n"
+            "- Teste outro operador lógico (E/OU)\n"
+            "- Reduza a quantidade de palavras\n"
+            "- Tente apenas uma palavra-chave principal\n"
+            "- Use a opção de busca por frase exata apenas quando necessário"
+        )
+        return
+
+    st.session_state.historico_buscas.insert(
+        0,
+        {
+            "termo": termos_raw,
+            "resultados": len(resultados),
+            "tipo": "Busca Avançada",
+            "testamento": filtro_testamento,
+            "livro": livro_escolhido,
+            "tempo_ms": tempo_ms,
+        },
+    )
+    st.session_state.historico_buscas = st.session_state.historico_buscas[:10]
+
+    label_contexto: list[str] = []
+    if filtro_testamento != "Todos":
+        label_contexto.append(filtro_testamento)
+    if livro_escolhido != "Todos":
+        label_contexto.append(livro_escolhido)
+
+    contexto_str = " / ".join(label_contexto) if label_contexto else "Toda a Bíblia"
+
+    st.success(
+        f"🔎 Encontrados **{len(resultados)}** versículos "
+        f"para **'{termos_raw}'** em **{contexto_str}** "
+        f"({tempo_ms}ms)."
+    )
+
+    col_m1, col_m2, col_m3 = st.columns(3)
+    with col_m1:
+        st.metric("Livros encontrados", resultados["Livro"].nunique())
+    with col_m2:
+        st.metric(
+            "Capítulos distintos",
+            resultados[["Livro", "Capítulo"]].drop_duplicates().shape[0],
+        )
+    with col_m3:
+        st.metric("Total de versículos", len(resultados))
+
     st.markdown("---")
-    
-    # Exemplos de busca
-    with st.expander("📚 Exemplos de Busca"):
-        st.markdown("""
-        **Busca com E (AND):**
-        - `amor fé` → Versículos com ambas
-        
-        **Busca com OU (OR):**
-        - `paz alegria` → Versículos com qualquer uma
-        
-        **Frase Exata:**
-        - `o amor de Deus` → Frase completa
-        
-        **Com Filtros:**
-        - Termo: `salvação`
-        - Livro: `João`
-        - Resultado: Salvação apenas em João
-        """)
-    
-    # Atalhos
+    st.subheader("📋 Resultados da busca")
+
+    resultados_ord = resultados.sort_values(
+        by=["Livro", "Capítulo", "Versículo"]
+    ).reset_index(drop=True)
+
+    st.dataframe(
+        resultados_ord[["Livro", "Capítulo", "Versículo", "Texto"]],
+        use_container_width=True,
+        hide_index=True,
+    )
+
     st.markdown("---")
-    st.markdown("### ⚡ Atalhos")
-    
+    st.subheader("📥 Exportar resultados")
+
+    col_e1, col_e2, col_e3, col_e4 = st.columns(4)
+    base_nome = f"busca_avancada_{termos_raw.replace(' ', '_')}"
+
+    with col_e1:
+        exportar_csv(resultados_ord, base_nome)
+    with col_e2:
+        exportar_xlsx(resultados_ord, base_nome)
+    with col_e3:
+        exportar_pdf(resultados_ord,
+                     f"Busca Avançada: {termos_raw}", base_nome)
+    with col_e4:
+        exportar_html(
+            resultados_ord,
+            f"Busca Avançada: {termos_raw}",
+            base_nome,
+        )
+
+
+if disparar:
+    executar_busca_avancada()
+
+
+# ============================================================
+# Histórico de buscas
+# ============================================================
+st.markdown("---")
+st.subheader("🕒 Histórico recente de buscas")
+
+if not st.session_state.historico_buscas:
+    st.info("Nenhuma busca realizada nesta sessão.")
+else:
+    for item in st.session_state.historico_buscas:
+        detalhes = f"{item.get('termo', '')} • {item.get('resultados', 0)} resultados"
+        if item.get("livro") and item["livro"] != "Todos":
+            detalhes += f" • {item['livro']}"
+        elif item.get("testamento") and item["testamento"] not in (None, "", "Todos"):
+            detalhes += f" • {item['testamento']}"
+        if "tempo_ms" in item:
+            detalhes += f" • {item['tempo_ms']}ms"
+
+        with st.expander(detalhes):
+            st.write(f"Tipo: {item.get('tipo', 'N/D')}")
+            if item.get("testamento") and item["testamento"] != "Todos":
+                st.write(f"Testamento: {item['testamento']}")
+            if item.get("livro") and item["livro"] != "Todos":
+                st.write(f"Livro: {item['livro']}")
+
+
+# ============================================================
+# Atalhos
+# ============================================================
+st.markdown("---")
+st.markdown("### ⚡ Atalhos")
+
+c_at1, c_at2 = st.columns(2)
+with c_at1:
     if st.button("🔍 Busca Simples", use_container_width=True):
         st.switch_page("pages/2_🔍_Busca_Simples.py")
-    
-    if st.button("⚖️ Comparar Versões", use_container_width=True):
-        st.switch_page("pages/4_⚖️_Comparação.py")
+with c_at2:
+    if st.button("📖 Leitura", use_container_width=True):
+        st.switch_page("pages/1_📖_Leitura.py")
 
 conexao.close()
